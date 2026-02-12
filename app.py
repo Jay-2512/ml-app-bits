@@ -7,13 +7,12 @@ import matplotlib.pyplot as plt
 
 from sklearn.metrics import confusion_matrix, classification_report
 
-# ---------------- CONFIG ----------------
 st.set_page_config(page_title="Breast Cancer Classification App", layout="centered")
 st.title("Breast Cancer Classification App")
 
 st.info("Please upload only the test dataset (small CSV file).")
 
-# ---------------- LOAD METADATA ----------------
+# Load metrics
 with open("model/metrics.json") as f:
     METRICS = json.load(f)
 
@@ -29,11 +28,8 @@ MODEL_FILES = {
 # Load preprocessing objects
 imputer = joblib.load("model/imputer.pkl")
 scaler = joblib.load("model/scaler.pkl")
+feature_names = joblib.load("model/feature_names.pkl")
 
-# Get training feature names
-feature_names = scaler.feature_names_in_
-
-# ---------------- DATASET UPLOAD ----------------
 st.header("Upload Test Dataset (CSV)")
 uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
 
@@ -45,42 +41,38 @@ if uploaded_file:
         st.error("CSV must contain a 'diagnosis' column.")
         st.stop()
 
-    # Clean data
     if "id" in df.columns:
         df.drop(columns=["id"], inplace=True)
 
     df.dropna(axis=1, how="all", inplace=True)
 
-    # Separate features and target
     X = df.drop(columns=["diagnosis"])
     y = df["diagnosis"].map({"M": 1, "B": 0})
 
     # Ensure feature consistency
     missing_cols = set(feature_names) - set(X.columns)
-    extra_cols = set(X.columns) - set(feature_names)
-
     if missing_cols:
         st.error(f"Missing required columns: {missing_cols}")
         st.stop()
 
+    # Remove extra columns if any
+    extra_cols = set(X.columns) - set(feature_names)
     if extra_cols:
         X = X.drop(columns=extra_cols)
 
+    # Ensure correct column order
     X = X[feature_names]
 
     # Preprocess
     X = imputer.transform(X)
     X = scaler.transform(X)
 
-    # ---------------- MODEL SELECTION ----------------
     st.header("Select Model")
     model_name = st.selectbox("Choose a model", list(MODEL_FILES.keys()))
     model = joblib.load(MODEL_FILES[model_name])
 
-    # Prediction
     y_pred = model.predict(X)
 
-    # ---------------- METRICS DISPLAY ----------------
     st.header("Evaluation Metrics")
 
     metric_key = model_name.lower().replace(" ", "_")
@@ -96,7 +88,6 @@ if uploaded_file:
     col5.metric("AUC", f"{m['auc']:.4f}")
     col6.metric("MCC", f"{m['mcc']:.4f}")
 
-    # ---------------- CONFUSION MATRIX ----------------
     st.header("Confusion Matrix")
 
     cm = confusion_matrix(y, y_pred)
@@ -115,7 +106,6 @@ if uploaded_file:
 
     st.pyplot(fig)
 
-    # ---------------- CLASSIFICATION REPORT ----------------
     st.header("Classification Report")
 
     report = classification_report(
