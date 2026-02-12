@@ -40,8 +40,6 @@ This is a **binary classification problem**.
 
 ### Model Comparison Table
 
-## Model Comparison Table
-
 | ML Model Name | Accuracy | AUC | Precision | Recall | F1 Score | MCC |
 |---------------|----------|------|-----------|--------|----------|------|
 | Logistic Regression | 0.9649 | 0.9960 | 0.9750 | 0.9286 | 0.9512 | 0.9245 |
