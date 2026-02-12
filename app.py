@@ -8,8 +8,10 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, classification_report
 
 # ---------------- CONFIG ----------------
-st.set_page_config(page_title="Breast Cancer Classifier", layout="centered")
-st.title("🩺 Breast Cancer Classification App")
+st.set_page_config(page_title="Breast Cancer Classification App", layout="centered")
+st.title("Breast Cancer Classification App")
+
+st.info("Please upload only the test dataset (small CSV file).")
 
 # ---------------- LOAD METADATA ----------------
 with open("model/metrics.json") as f:
@@ -28,57 +30,77 @@ MODEL_FILES = {
 imputer = joblib.load("model/imputer.pkl")
 scaler = joblib.load("model/scaler.pkl")
 
+# Get training feature names
+feature_names = scaler.feature_names_in_
+
 # ---------------- DATASET UPLOAD ----------------
-st.header("📂 Upload Test Dataset (CSV)")
+st.header("Upload Test Dataset (CSV)")
 uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
 
 if uploaded_file:
+
     df = pd.read_csv(uploaded_file)
 
     if "diagnosis" not in df.columns:
-        st.error("CSV must contain a 'diagnosis' column")
+        st.error("CSV must contain a 'diagnosis' column.")
         st.stop()
 
-    # Clean dataset
+    # Clean data
     if "id" in df.columns:
         df.drop(columns=["id"], inplace=True)
 
     df.dropna(axis=1, how="all", inplace=True)
 
+    # Separate features and target
     X = df.drop(columns=["diagnosis"])
     y = df["diagnosis"].map({"M": 1, "B": 0})
+
+    # Ensure feature consistency
+    missing_cols = set(feature_names) - set(X.columns)
+    extra_cols = set(X.columns) - set(feature_names)
+
+    if missing_cols:
+        st.error(f"Missing required columns: {missing_cols}")
+        st.stop()
+
+    if extra_cols:
+        X = X.drop(columns=extra_cols)
+
+    X = X[feature_names]
 
     # Preprocess
     X = imputer.transform(X)
     X = scaler.transform(X)
 
-    # Model selection
-    st.header("🤖 Select Model")
+    # ---------------- MODEL SELECTION ----------------
+    st.header("Select Model")
     model_name = st.selectbox("Choose a model", list(MODEL_FILES.keys()))
     model = joblib.load(MODEL_FILES[model_name])
 
     # Prediction
     y_pred = model.predict(X)
 
-    # Metrics Display
-    st.header("📊 Evaluation Metrics")
+    # ---------------- METRICS DISPLAY ----------------
+    st.header("Evaluation Metrics")
 
-    m = METRICS[model_name.lower().replace(" ", "_")]
+    metric_key = model_name.lower().replace(" ", "_")
+    m = METRICS[metric_key]
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("Accuracy", f"{m['accuracy']:.3f}")
-    col2.metric("Precision", f"{m['precision']:.3f}")
-    col3.metric("Recall", f"{m['recall']:.3f}")
+    col1.metric("Accuracy", f"{m['accuracy']:.4f}")
+    col2.metric("Precision", f"{m['precision']:.4f}")
+    col3.metric("Recall", f"{m['recall']:.4f}")
 
     col4, col5, col6 = st.columns(3)
-    col4.metric("F1 Score", f"{m['f1_score']:.3f}")
-    col5.metric("AUC", f"{m['auc']:.3f}")
-    col6.metric("MCC", f"{m['mcc']:.3f}")
+    col4.metric("F1 Score", f"{m['f1_score']:.4f}")
+    col5.metric("AUC", f"{m['auc']:.4f}")
+    col6.metric("MCC", f"{m['mcc']:.4f}")
 
-    # Confusion matrix
-    st.header("📉 Confusion Matrix")
+    # ---------------- CONFUSION MATRIX ----------------
+    st.header("Confusion Matrix")
 
     cm = confusion_matrix(y, y_pred)
+
     fig, ax = plt.subplots()
     sns.heatmap(
         cm,
@@ -90,9 +112,16 @@ if uploaded_file:
     )
     ax.set_xlabel("Predicted")
     ax.set_ylabel("Actual")
+
     st.pyplot(fig)
 
-    # Classification report
-    st.header("📄 Classification Report")
-    report = classification_report(y, y_pred, target_names=["Benign", "Malignant"])
+    # ---------------- CLASSIFICATION REPORT ----------------
+    st.header("Classification Report")
+
+    report = classification_report(
+        y,
+        y_pred,
+        target_names=["Benign", "Malignant"]
+    )
+
     st.text(report)
