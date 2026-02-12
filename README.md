@@ -40,7 +40,7 @@ This is a **binary classification problem**.
 
 ### Model Comparison Table
 
-## 📊 Model Comparison Table
+## Model Comparison Table
 
 | ML Model Name | Accuracy | AUC | Precision | Recall | F1 Score | MCC |
 |---------------|----------|------|-----------|--------|----------|------|
